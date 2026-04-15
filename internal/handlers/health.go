@@ -1,16 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func HealthCheck(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("Content-Type", "application/json")
+func HealthCheck(c *gin.Context) {
 	healthResponse := map[string]string{"status": "ok"}
-	if err := json.NewEncoder(responseWriter).Encode(healthResponse); err != nil {
-		http.Error(responseWriter, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	responseWriter.WriteHeader(http.StatusOK)
+	c.JSON(http.StatusOK, healthResponse)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,51 +10,53 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"gostudy/internal/handlers"
-	"gostudy/internal/middleware"
 )
 
+func gracefulShutdown(srv *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+}
+
 func main() {
+
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	gin.SetMode(gin.ReleaseMode)
 
-	apiMux := http.NewServeMux()
-	apiMux.HandleFunc("/api/v1/health", handlers.HealthCheck)
+	router := gin.New()
 
-	handler := middleware.Recovery(
-		middleware.Logging(apiMux),
-	)
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
 
-	httpServer := &http.Server{
+	router.GET("/api/v1/health", handlers.HealthCheck)
+	router.GET("/api/v1/time", handlers.CurrentTime)
+
+	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      handler,
+		Handler:      router,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {
-		slog.Info("starting HTTP server", "addr", httpServer.Addr)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Info("starting HTTP server", "addr", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)
 		}
 	}()
 
-	gracefulShutdown(httpServer)
-}
-
-func gracefulShutdown(httpServer *http.Server) {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	slog.Info("shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		slog.Error("forced shutdown", "error", err)
-		os.Exit(1)
-	}
-	slog.Info("server stopped gracefully")
+	gracefulShutdown(server)
 }
