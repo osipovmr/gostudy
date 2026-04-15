@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"gostudy/internal/repository"
+	"gostudy/internal/service"
 	"log"
 	"log/slog"
 	"net/http"
@@ -12,7 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gostudy/internal/handlers"
+	"gostudy/internal/handler"
 )
 
 func gracefulShutdown(srv *http.Server) {
@@ -38,9 +40,13 @@ func main() {
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	userRepo := repository.NewUserRepository()
+	userSvc := service.NewUserService(userRepo)
 
-	router.GET("/api/v1/health", handlers.HealthCheck)
-	router.GET("/api/v1/time", handlers.CurrentTime)
+	router.GET("/api/v1/health", handler.HealthCheck)
+	router.GET("/api/v1/time", handler.CurrentTime)
+
+	handler.RegisterUserRoutes(router, userSvc)
 
 	server := &http.Server{
 		Addr:         ":8080",
