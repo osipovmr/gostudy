@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"gostudy/internal/custom_errors"
 	"gostudy/internal/model/entity"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,8 +27,8 @@ func NewUserRepository(db *pgxpool.Pool) UserRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
-	query := `INSERT INTO users (id, name) VALUES ($1, $2) RETURNING id`
-	err := r.db.QueryRow(ctx, query, user.ID, user.Name).Scan(&user.ID)
+	query := `INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3) RETURNING id`
+	err := r.db.QueryRow(ctx, query, user.ID, user.Name, user.Email).Scan(&user.ID)
 	if err != nil {
 		return err
 	}
@@ -33,18 +36,20 @@ func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
-	query := `SELECT id, name FROM users WHERE id=$1`
-
+	query := `SELECT id, name, email FROM "user" WHERE id = $1`
 	var u entity.User
-	if err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name); err != nil {
+	err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, custom_errors.ErrUserNotFound
+		}
 		return nil, err
 	}
-
 	return &u, nil
 }
 
 func (r *userRepository) List(ctx context.Context) ([]entity.User, error) {
-	query := `SELECT id, name FROM users`
+	query := `SELECT id, name, email FROM "user"`
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -52,26 +57,31 @@ func (r *userRepository) List(ctx context.Context) ([]entity.User, error) {
 	}
 	defer rows.Close()
 
-	var users []entity.User
+	users := make([]entity.User, 0)
+
 	for rows.Next() {
 		var u entity.User
-		if err := rows.Scan(&u.ID, &u.Name); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return users, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
-	query := `UPDATE users SET name=$1 WHERE id=$2`
-	_, err := r.db.Exec(ctx, query, user.Name, user.ID)
+	query := `UPDATE "user" SET name=$1, email=$2 WHERE id=$3`
+	_, err := r.db.Exec(ctx, query, user.Name, user.Email, user.ID)
 	return err
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {
-	query := `DELETE FROM users WHERE id=$1`
+	query := `DELETE FROM "user" WHERE id=$1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
