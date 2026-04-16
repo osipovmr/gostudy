@@ -42,7 +42,6 @@ func createUser(svc service.UserService) gin.HandlerFunc {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-
 		c.JSON(http.StatusCreated, user)
 	}
 }
@@ -88,7 +87,7 @@ func updateUser(svc service.UserService) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "updated"})
+		c.JSON(http.StatusOK, user)
 	}
 }
 
