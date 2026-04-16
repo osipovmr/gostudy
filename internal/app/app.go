@@ -17,7 +17,7 @@ type App struct {
 	Server *http.Server
 }
 
-func NewApp(cfg *config.Config) *App {
+func New(cfg *config.Config) *App {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()

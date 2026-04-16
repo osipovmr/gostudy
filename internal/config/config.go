@@ -10,7 +10,7 @@ type Config struct {
 	HTTPAddr string
 }
 
-func LoadConfig() *Config {
+func Load() *Config {
 	_ = godotenv.Load()
 
 	addr := os.Getenv("HTTP_ADDR")

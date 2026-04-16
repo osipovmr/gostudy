@@ -14,14 +14,14 @@ import (
 )
 
 func main() {
-	logger.InitLogger()
+	logger.Init()
 
-	cfg := config.LoadConfig()
+	cfg := config.Load()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	application := app.NewApp(cfg)
+	application := app.New(cfg)
 
 	if err := application.Run(ctx); err != nil {
 		slog.Error("app stopped with error", "error", err)
