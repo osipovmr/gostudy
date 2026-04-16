@@ -2,6 +2,7 @@ package app
 
 import (
 	"gostudy/internal/config"
+	"gostudy/internal/db"
 	"gostudy/internal/handler"
 	"gostudy/internal/repository"
 	"gostudy/internal/service"
@@ -10,11 +11,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/net/context"
 )
 
 type App struct {
 	Server *http.Server
+	db     *pgxpool.Pool
 }
 
 func New(cfg *config.Config) *App {
@@ -22,8 +25,12 @@ func New(cfg *config.Config) *App {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-
-	userRepo := repository.NewUserRepository()
+	pool, err := db.NewPool(cfg.DBURL)
+	if err != nil {
+		panic(err)
+	}
+	db.RunMigrations(cfg.DBURL)
+	userRepo := repository.NewUserRepository(pool)
 	userSvc := service.NewUserService(userRepo)
 
 	router.GET("/api/v1/health", handler.HealthCheck)
@@ -55,7 +62,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-
+	defer a.db.Close()
 	if err := a.Server.Shutdown(shutdownCtx); err != nil {
 		return err
 	}

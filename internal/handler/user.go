@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"gostudy/internal/service"
 	"net/http"
 
-	"gostudy/internal/model"
+	"gostudy/internal/model/dto"
+	"gostudy/internal/model/entity"
+	"gostudy/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,32 +24,30 @@ func RegisterUserRoutes(router *gin.Engine, userSvc service.UserService) {
 
 func createUser(svc service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.ContentLength == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "body is required"})
-			return
-		}
-		var input model.CreateUserInput
+		var input dto.CreateUserInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		user := &model.User{
+		user := &entity.User{
 			ID:    uuid.New().String(),
 			Name:  input.Name,
 			Email: input.Email,
 		}
-		if err := svc.Create(user); err != nil {
+
+		if err := svc.Create(c.Request.Context(), user); err != nil {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
+
 		c.JSON(http.StatusCreated, user)
 	}
 }
 
 func listUsers(svc service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		users, err := svc.List()
+		users, err := svc.List(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
@@ -60,11 +59,13 @@ func listUsers(svc service.UserService) gin.HandlerFunc {
 func getUser(svc service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		user, err := svc.GetByID(id)
+
+		user, err := svc.GetByID(c.Request.Context(), id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+
 		c.JSON(http.StatusOK, user)
 	}
 }
@@ -73,20 +74,23 @@ func updateUser(svc service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 
-		var input model.UpdateUserInput
+		var input dto.UpdateUserInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		user := &model.User{
+		user := &entity.User{
+			ID:    id,
 			Name:  input.Name,
 			Email: input.Email,
 		}
-		if err := svc.Update(id, user); err != nil {
+
+		if err := svc.Update(c.Request.Context(), user); err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+
 		c.JSON(http.StatusOK, user)
 	}
 }
@@ -94,10 +98,12 @@ func updateUser(svc service.UserService) gin.HandlerFunc {
 func deleteUser(svc service.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		if err := svc.Delete(id); err != nil {
+
+		if err := svc.Delete(c.Request.Context(), id); err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+
 		c.Status(http.StatusNoContent)
 	}
 }

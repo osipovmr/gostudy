@@ -8,17 +8,21 @@ import (
 
 type Config struct {
 	HTTPAddr string
+	DBURL    string
 }
 
 func Load() *Config {
 	_ = godotenv.Load()
 
-	addr := os.Getenv("HTTP_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
-
 	return &Config{
-		HTTPAddr: addr,
+		HTTPAddr: getEnv("HTTP_ADDR", ":8080"),
+		DBURL:    getEnv("DB_URL", ""),
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
