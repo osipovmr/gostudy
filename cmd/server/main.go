@@ -4,7 +4,6 @@ import (
 	"context"
 	"gostudy/internal/repository"
 	"gostudy/internal/service"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,33 +12,35 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"gostudy/internal/handler"
 )
 
-func gracefulShutdown(srv *http.Server) {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+func gracefulShutdown(ctx context.Context, srv *http.Server) {
+	<-ctx.Done()
+	slog.Info("shutting down server")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("graceful shutdown failed", "error", err)
 	}
+
+	slog.Info("server stopped")
 }
 
 func main() {
 
+	if err := godotenv.Load(); err != nil {
+		slog.Warn(".env file not found, using system env")
+	}
+
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	gin.SetMode(gin.ReleaseMode)
 
-	router := gin.New()
-
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	router := gin.Default()
 	userRepo := repository.NewUserRepository()
 	userSvc := service.NewUserService(userRepo)
 
@@ -48,8 +49,16 @@ func main() {
 
 	handler.RegisterUserRoutes(router, userSvc)
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	addr := os.Getenv("HTTP_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         addr,
 		Handler:      router,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -60,9 +69,9 @@ func main() {
 		slog.Info("starting HTTP server", "addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server failed", "error", err)
-			os.Exit(1)
+			stop()
 		}
 	}()
 
-	gracefulShutdown(server)
+	gracefulShutdown(ctx, server)
 }
