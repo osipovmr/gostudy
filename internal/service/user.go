@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"gostudy/internal/model/dto"
 	"gostudy/internal/model/entity"
@@ -46,6 +47,7 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err
 	}
+	slog.Info("user created", "id", user.ID)
 	return toDTO(user), nil
 }
 
@@ -70,6 +72,7 @@ func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUse
 	if err := s.repo.Update(ctx, user); err != nil {
 		return nil, err
 	}
+	slog.Info("user updated", "id", user.ID)
 
 	return toDTO(user), nil
 }
@@ -79,7 +82,7 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return ErrUserNotFound
 	}
-
+	slog.Info("user deleted", "id", id)
 	return s.repo.Delete(ctx, id)
 }
 
