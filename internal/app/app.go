@@ -17,56 +17,68 @@ import (
 
 type App struct {
 	Server *http.Server
-	db     *pgxpool.Pool
+	Db     *pgxpool.Pool
 }
 
-func New(cfg *config.Config) *App {
+func New(cfg *config.Config) (*App, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+
 	pool, err := db.NewPool(cfg.DBURL)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	db.RunMigrations(cfg.DBURL)
+
+	if err := db.RunMigrations(cfg.DBURL); err != nil {
+		return nil, err
+	}
+
 	userRepo := repository.NewUserRepository(pool)
 	userSvc := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userSvc)
 
-	router.GET("/api/v1/health", handler.HealthCheck)
-	router.GET("/api/v1/time", handler.CurrentTime)
-	handler.RegisterUserRoutes(router, userSvc)
+	api := router.Group("/api/v1")
+	{
+		api.GET("/health", handler.HealthCheck)
+		api.GET("/time", handler.CurrentTime)
 
-	server := &http.Server{
-		Addr:         cfg.HTTPAddr,
-		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		userHandler.RegisterRoutes(router)
 	}
 
-	return &App{Server: server}
+	srv := &http.Server{
+		Addr:    cfg.HTTPAddr,
+		Handler: router,
+	}
+
+	return &App{
+		Server: srv,
+		Db:     pool,
+	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
+	errCh := make(chan error, 1)
 	go func() {
 		slog.Info("starting server", "addr", a.Server.Addr)
 		if err := a.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server error", "error", err)
+			errCh <- err
 		}
 	}()
-
-	<-ctx.Done()
-
-	slog.Info("shutting down server")
-
+	select {
+	case <-ctx.Done():
+		slog.Info("shutdown signal received")
+	case err := <-errCh:
+		return err
+	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	defer a.db.Close()
+	slog.Info("shutting down server")
 	if err := a.Server.Shutdown(shutdownCtx); err != nil {
 		return err
 	}
-
+	a.Db.Close()
 	slog.Info("server stopped")
 	return nil
 }

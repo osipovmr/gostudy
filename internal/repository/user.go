@@ -2,17 +2,16 @@ package repository
 
 import (
 	"context"
-	"errors"
-	"gostudy/internal/custom_errors"
+
 	"gostudy/internal/model/entity"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, user *entity.User) error
 	GetByID(ctx context.Context, id string) (*entity.User, error)
+	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 	List(ctx context.Context) ([]entity.User, error)
 	Update(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id string) error
@@ -38,14 +37,15 @@ func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
 	query := `SELECT id, name, email FROM "user" WHERE id = $1`
 	var u entity.User
-	err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, custom_errors.ErrUserNotFound
-		}
-		return nil, err
-	}
-	return &u, nil
+	err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email)
+	return &u, err
+}
+
+func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	query := `SELECT id, name, email FROM "user" WHERE email = $1`
+	var u entity.User
+	err := r.db.QueryRow(ctx, query, email).Scan(&u.ID, &u.Name, &u.Email)
+	return &u, err
 }
 
 func (r *userRepository) List(ctx context.Context) ([]entity.User, error) {
