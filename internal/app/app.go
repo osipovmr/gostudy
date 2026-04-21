@@ -32,6 +32,7 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	if err := db.RunMigrations(cfg.DBURL); err != nil {
+		slog.Error("migrations failed", "err", err)
 		return nil, err
 	}
 
@@ -48,8 +49,20 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	srv := &http.Server{
-		Addr:    cfg.HTTPAddr,
+		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
+		Addr: cfg.HTTPAddr,
+		// HTTP роутер/хендлер, который обрабатывает все входящие запросы
 		Handler: router,
+		// Максимальное время ожидания чтения полного HTTP запроса от клиента
+		// Если клиент не отправит запрос за 5 секунд - соединение закрывается
+		ReadTimeout: 5 * time.Second,
+		// Максимальное время для отправки HTTP ответа клиенту после начала обработки
+		// Защищает от "долгих" ответов, которые клиент может не дождаться
+		WriteTimeout: 10 * time.Second,
+		// Максимальное время простоя TCP соединения между запросами от одного клиента
+		// Если клиент не отправляет новый запрос 120 секунд - соединение закрывается
+		// Важно для освобождения ресурсов при keep-alive соединениях
+		IdleTimeout: 120 * time.Second,
 	}
 
 	return &App{
