@@ -12,12 +12,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
 type App struct {
-	Server *http.Server
-	Db     *pgxpool.Pool
+	server *http.Server
+	db     *pgxpool.Pool
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -36,17 +37,13 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 
-	userRepo := repository.NewUserRepository(pool)
-	userSvc := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userSvc)
+	// --- DI ---
+	userRepository := repository.NewUserRepository(pool)
+	userService := service.NewUserService(userRepository)
+	userHandler := handler.NewUserHandler(userService)
 
-	api := router.Group("/api/v1")
-	{
-		api.GET("/health", handler.HealthCheck)
-		api.GET("/time", handler.CurrentTime)
-
-		userHandler.RegisterRoutes(router)
-	}
+	// --- Router ---
+	router = setupRouter(pool, userHandler)
 
 	srv := &http.Server{
 		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
@@ -55,27 +52,28 @@ func New(cfg *config.Config) (*App, error) {
 		Handler: router,
 		// Максимальное время ожидания чтения полного HTTP запроса от клиента
 		// Если клиент не отправит запрос за 5 секунд - соединение закрывается
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout: cfg.ReadTimeout,
 		// Максимальное время для отправки HTTP ответа клиенту после начала обработки
 		// Защищает от "долгих" ответов, которые клиент может не дождаться
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: cfg.WriteTimeout,
 		// Максимальное время простоя TCP соединения между запросами от одного клиента
 		// Если клиент не отправляет новый запрос 120 секунд - соединение закрывается
 		// Важно для освобождения ресурсов при keep-alive соединениях
-		IdleTimeout: 120 * time.Second,
+		IdleTimeout: cfg.IdleTimeout,
 	}
 
 	return &App{
-		Server: srv,
-		Db:     pool,
+		server: srv,
+		db:     pool,
 	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
+
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("starting server", "addr", a.Server.Addr)
-		if err := a.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Info("starting server", "addr", a.server.Addr)
+		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -85,13 +83,47 @@ func (a *App) Run(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	return a.shutdown()
+
+}
+
+func (a *App) shutdown() error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	slog.Info("shutting down server")
-	if err := a.Server.Shutdown(shutdownCtx); err != nil {
+	if err := a.server.Shutdown(ctx); err != nil {
 		return err
 	}
-	a.Db.Close()
+	a.db.Close()
 	slog.Info("server stopped")
 	return nil
+
+}
+
+func setupRouter(pool *pgxpool.Pool, userHandler *handler.UserHandler) *gin.Engine {
+	router := gin.New()
+	// middleware
+	router.Use(gin.Recovery())
+	router.Use(gin.Logger())
+	// --- k8s probes ---
+	router.GET("/live", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	router.GET("/ready", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "db not ready"})
+			return
+		}
+		c.Status(http.StatusOK)
+	})
+	// --- API v1 ---
+	api := router.Group("/api/v1")
+	{
+		api.GET("/time", handler.CurrentTime)
+		userHandler.RegisterRoutes(api)
+	}
+	return router
 }

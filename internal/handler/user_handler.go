@@ -11,15 +11,15 @@ import (
 )
 
 type UserHandler struct {
-	svc service.UserService
+	userService service.UserService
 }
 
-func NewUserHandler(svc service.UserService) *UserHandler {
-	return &UserHandler{svc: svc}
+func NewUserHandler(userService service.UserService) *UserHandler {
+	return &UserHandler{userService: userService}
 }
 
-func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
-	users := router.Group("/api/v1/users")
+func (h *UserHandler) RegisterRoutes(routerGroup *gin.RouterGroup) {
+	users := routerGroup.Group("/users")
 	{
 		users.POST("", h.createUser)
 		users.GET("", h.listUsers)
@@ -36,7 +36,7 @@ func (h *UserHandler) createUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Create(c.Request.Context(), input)
+	user, err := h.userService.Create(c.Request.Context(), input)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserExists):
@@ -51,7 +51,7 @@ func (h *UserHandler) createUser(c *gin.Context) {
 }
 
 func (h *UserHandler) listUsers(c *gin.Context) {
-	users, err := h.svc.List(c.Request.Context())
+	users, err := h.userService.List(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse("internal error"))
 		return
@@ -63,7 +63,7 @@ func (h *UserHandler) listUsers(c *gin.Context) {
 func (h *UserHandler) getUser(c *gin.Context) {
 	id := c.Param("id")
 
-	user, err := h.svc.GetByID(c.Request.Context(), id)
+	user, err := h.userService.GetByID(c.Request.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserNotFound):
@@ -86,7 +86,7 @@ func (h *UserHandler) updateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Update(c.Request.Context(), id, input)
+	user, err := h.userService.Update(c.Request.Context(), id, input)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserNotFound):
@@ -103,7 +103,7 @@ func (h *UserHandler) updateUser(c *gin.Context) {
 func (h *UserHandler) deleteUser(c *gin.Context) {
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
+	if err := h.userService.Delete(c.Request.Context(), id); err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserNotFound):
 			c.JSON(http.StatusNotFound, errorResponse("user not found"))

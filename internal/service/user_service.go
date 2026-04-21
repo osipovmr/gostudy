@@ -26,15 +26,15 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repository.UserRepository
+	userRepository repository.UserRepository
 }
 
 func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+	return &userService{userRepository: repo}
 }
 
 func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*dto.UserDto, error) {
-	existing, err := s.repo.GetByEmail(ctx, input.Email)
+	existing, err := s.userRepository.GetByEmail(ctx, input.Email)
 	if err == nil && existing != nil {
 		return nil, ErrUserExists
 	}
@@ -44,7 +44,7 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 		Email: input.Email,
 	}
 
-	if err := s.repo.Create(ctx, user); err != nil {
+	if err := s.userRepository.Create(ctx, user); err != nil {
 		return nil, err
 	}
 	slog.Info("user created", "id", user.ID)
@@ -52,7 +52,7 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 }
 
 func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, error) {
-	user, err := s.repo.GetByID(ctx, id)
+	user, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
@@ -61,7 +61,7 @@ func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, err
 }
 
 func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUserInput) (*dto.UserDto, error) {
-	user, err := s.repo.GetByID(ctx, id)
+	user, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
@@ -69,7 +69,7 @@ func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUse
 	user.Name = input.Name
 	user.Email = input.Email
 
-	if err := s.repo.Update(ctx, user); err != nil {
+	if err := s.userRepository.Update(ctx, user); err != nil {
 		return nil, err
 	}
 	slog.Info("user updated", "id", user.ID)
@@ -78,16 +78,16 @@ func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUse
 }
 
 func (s *userService) Delete(ctx context.Context, id string) error {
-	_, err := s.repo.GetByID(ctx, id)
+	_, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
 		return ErrUserNotFound
 	}
 	slog.Info("user deleted", "id", id)
-	return s.repo.Delete(ctx, id)
+	return s.userRepository.Delete(ctx, id)
 }
 
 func (s *userService) List(ctx context.Context) ([]*dto.UserDto, error) {
-	users, err := s.repo.List(ctx)
+	users, err := s.userRepository.List(ctx)
 	if err != nil {
 		return nil, err
 	}
