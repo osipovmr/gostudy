@@ -26,7 +26,7 @@ func NewUserRepository(db *pgxpool.Pool) UserRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
-	query := `INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3) RETURNING id`
+	query := `INSERT INTO users (uuid, name, email) VALUES ($1, $2, $3) RETURNING id`
 	err := r.db.QueryRow(ctx, query, user.ID, user.Name, user.Email).Scan(&user.ID)
 	if err != nil {
 		return err
@@ -35,21 +35,21 @@ func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
-	query := `SELECT id, name, email FROM "user" WHERE id = $1`
+	query := `SELECT uuid, name, email FROM users WHERE uuid = $1`
 	var u entity.User
 	err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email)
 	return &u, err
 }
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
-	query := `SELECT id, name, email FROM "user" WHERE email = $1`
+	query := `SELECT id, name, email FROM users WHERE email = $1`
 	var u entity.User
 	err := r.db.QueryRow(ctx, query, email).Scan(&u.ID, &u.Name, &u.Email)
 	return &u, err
 }
 
 func (r *userRepository) List(ctx context.Context) ([]entity.User, error) {
-	query := `SELECT id, name, email FROM "user"`
+	query := `SELECT uuid, name, email FROM users`
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -75,13 +75,13 @@ func (r *userRepository) List(ctx context.Context) ([]entity.User, error) {
 }
 
 func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
-	query := `UPDATE "user" SET name=$1, email=$2 WHERE id=$3`
+	query := `UPDATE users SET name=$1, email=$2 WHERE uuid=$3`
 	_, err := r.db.Exec(ctx, query, user.Name, user.Email, user.ID)
 	return err
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {
-	query := `DELETE FROM "user" WHERE id=$1`
+	query := `DELETE FROM users WHERE uuid=$1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
