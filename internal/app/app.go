@@ -31,6 +31,7 @@ func New(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	txManager := db.NewTxManager(pool)
 
 	if err := db.RunMigrations(cfg.DBURL); err != nil {
 		slog.Error("migrations failed", "err", err)
@@ -39,7 +40,7 @@ func New(cfg *config.Config) (*App, error) {
 
 	// --- DI ---
 	userRepository := repository.NewUserRepository(pool)
-	userService := service.NewUserService(userRepository)
+	userService := service.NewUserService(userRepository, txManager)
 	userHandler := handler.NewUserHandler(userService)
 
 	// --- Router ---

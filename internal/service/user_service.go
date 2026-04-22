@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"gostudy/internal/db"
 	"log/slog"
 
 	"gostudy/internal/model/dto"
@@ -27,28 +28,39 @@ type UserService interface {
 
 type userService struct {
 	userRepository repository.UserRepository
+	txManager      db.TxManager
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{userRepository: repo}
+func NewUserService(repo repository.UserRepository, txManager db.TxManager) UserService {
+	return &userService{
+		userRepository: repo,
+		txManager:      txManager,
+	}
 }
 
 func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*dto.UserDto, error) {
-	existing, err := s.userRepository.GetByEmail(ctx, input.Email)
-	if err == nil && existing != nil {
-		return nil, ErrUserExists
-	}
-	user := &entity.User{
-		ID:    uuid.New().String(),
-		Name:  input.Name,
-		Email: input.Email,
-	}
-
-	if err := s.userRepository.Create(ctx, user); err != nil {
+	var result *dto.UserDto
+	err := s.txManager.WithTx(ctx, func(ctx context.Context) error {
+		existing, err := s.userRepository.GetByEmail(ctx, input.Email)
+		if err == nil && existing != nil {
+			return ErrUserExists
+		}
+		user := &entity.User{
+			ID:    uuid.New().String(),
+			Name:  input.Name,
+			Email: input.Email,
+		}
+		if err := s.userRepository.Create(ctx, user); err != nil {
+			return err
+		}
+		result = toDTO(user)
+		slog.Info("user created", "id", result.ID)
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	slog.Info("user created", "id", user.ID)
-	return toDTO(user), nil
+	return result, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, error) {
