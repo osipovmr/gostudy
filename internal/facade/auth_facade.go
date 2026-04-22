@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	ErrRegistration = errors.New("Failed to register user")
-	ErrUserExists   = errors.New("user already exists")
+	ErrInvalidCredentials = errors.New("invalid email or password")
 )
 
 type authFacade struct {
@@ -21,6 +20,7 @@ type authFacade struct {
 
 type AuthFacade interface {
 	Register(context context.Context, req dto.RegisterRequest) (*dto.UserDto, error)
+	Login(context context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 }
 
 func NewAuthFacade(userService service.UserService, tokenService service.TokenService) AuthFacade {
@@ -31,7 +31,7 @@ func NewAuthFacade(userService service.UserService, tokenService service.TokenSe
 }
 
 func (f *authFacade) Register(context context.Context, req dto.RegisterRequest) (*dto.UserDto, error) {
-	hashedPassword, err := HashPassword(req.Password)
+	hashedPassword, err := hashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,33 @@ func (f *authFacade) Register(context context.Context, req dto.RegisterRequest) 
 	return userDto, nil
 }
 
-func HashPassword(password string) (string, error) {
+func (f *authFacade) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
+	user, err := f.userService.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := checkPassword(user.Password, req.Password); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	accessToken, err := f.tokenService.GenerateAccessToken(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := f.tokenService.GenerateRefreshToken(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func hashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -50,6 +76,6 @@ func HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-func CheckPassword(hash, password string) error {
+func checkPassword(hash, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }

@@ -19,7 +19,7 @@ func NewAuthHandler(authFacade facade.AuthFacade) *AuthHandler {
 func (h *AuthHandler) RegisterRoutes(routerGroup *gin.RouterGroup) {
 	//routerGroup.GET("/me", h.GetMe)
 	routerGroup.POST("/register", h.Register)
-	//routerGroup.POST("/login", h.Login)
+	routerGroup.POST("/login", h.Login)
 	//routerGroup.POST("/refresh", h.Refresh)
 	//.POST("/logout", h.Logout)
 }
@@ -57,22 +57,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, res)
 }
 
-//func (h *AuthHandler) Login(c *gin.Context) {
-//	var req dto.LoginRequest
-//	if err := c.ShouldBindJSON(&req); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//	res, err := h.authFacade.Login(c.Request.Context(), req.Email, req.Password)
-//	if err != nil {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//	c.JSON(http.StatusOK, res)
-//}
-//
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := h.authFacade.Login(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
 //func (h *AuthHandler) Refresh(c *gin.Context) {
 //	authHeader := c.GetHeader("Authorization")
 //	if authHeader == "" {

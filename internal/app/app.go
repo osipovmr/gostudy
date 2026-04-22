@@ -43,7 +43,7 @@ func New(cfg *config.Config) (*App, error) {
 	userRepository := repository.NewUserRepository(pool)
 	tokenRepository := repository.NewTokenRepository(pool)
 	userService := service.NewUserService(userRepository, txManager)
-	tokenService := service.NewTokenService(tokenRepository)
+	tokenService := service.NewTokenService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, tokenRepository)
 	authFacade := facade.NewAuthFacade(userService, tokenService)
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authFacade)

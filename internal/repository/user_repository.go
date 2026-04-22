@@ -42,9 +42,9 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, 
 }
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
-	query := `SELECT uuid, name, email FROM users WHERE email = $1`
+	query := `SELECT uuid, name, email, password FROM users WHERE email = $1`
 	var u entity.User
-	err := r.db.QueryRow(ctx, query, email).Scan(&u.Uuid, &u.Name, &u.Email)
+	err := r.db.QueryRow(ctx, query, email).Scan(&u.Uuid, &u.Name, &u.Email, &u.Password)
 	return &u, err
 }
 

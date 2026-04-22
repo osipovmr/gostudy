@@ -24,6 +24,7 @@ type UserService interface {
 	Update(ctx context.Context, id string, input dto.UpdateUserInput) (*dto.UserDto, error)
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context) ([]*dto.UserDto, error)
+	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 }
 
 type userService struct {
@@ -46,10 +47,9 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 			return ErrUserExists
 		}
 		user := &entity.User{
-			Uuid:  uuid.New().String(),
-			Name:  input.Name,
-			Email: input.Email,
-			//todo хешировать
+			Uuid:     uuid.New().String(),
+			Name:     input.Name,
+			Email:    input.Email,
 			Password: input.Password,
 		}
 		if err := s.userRepository.Create(ctx, user); err != nil {
@@ -63,6 +63,14 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 		return nil, err
 	}
 	return result, nil
+}
+
+func (s *userService) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	user, err := s.userRepository.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+	return user, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, error) {
