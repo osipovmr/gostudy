@@ -20,6 +20,7 @@ type tokenService struct {
 type TokenService interface {
 	GenerateAccessToken(ctx context.Context, user *entity.User) (string, error)
 	GenerateRefreshToken(ctx context.Context, user *entity.User) (string, error)
+	Save(ctx context.Context, user *entity.User, token string) error
 }
 
 func NewTokenService(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration, repo repository.TokenRepository) TokenService {
@@ -72,4 +73,12 @@ func (s *tokenService) GenerateRefreshToken(ctx context.Context, user *entity.Us
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.refreshSecret)
+}
+
+func (s *tokenService) Save(ctx context.Context, user *entity.User, token string) error {
+	err := s.tokenRepository.Save(ctx, user, token)
+	if err != nil {
+		return err
+	}
+	return nil
 }

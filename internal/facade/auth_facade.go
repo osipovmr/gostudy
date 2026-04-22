@@ -61,6 +61,10 @@ func (f *authFacade) Login(ctx context.Context, req dto.LoginRequest) (*dto.Logi
 	if err != nil {
 		return nil, err
 	}
+	err = f.tokenService.Save(ctx, user, refreshToken)
+	if err != nil {
+		return nil, err
+	}
 
 	return &dto.LoginResponse{
 		AccessToken:  accessToken,
