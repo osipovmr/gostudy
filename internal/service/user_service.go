@@ -46,15 +46,17 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 			return ErrUserExists
 		}
 		user := &entity.User{
-			ID:    uuid.New().String(),
+			Uuid:  uuid.New().String(),
 			Name:  input.Name,
 			Email: input.Email,
+			//todo хешировать
+			Password: input.Password,
 		}
 		if err := s.userRepository.Create(ctx, user); err != nil {
 			return err
 		}
 		result = toDTO(user)
-		slog.Info("user created", "id", result.ID)
+		slog.Info("user created", "uuid", result.Uuid)
 		return nil
 	})
 	if err != nil {
@@ -84,7 +86,7 @@ func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUse
 	if err := s.userRepository.Update(ctx, user); err != nil {
 		return nil, err
 	}
-	slog.Info("user updated", "id", user.ID)
+	slog.Info("user updated", "id", user.Uuid)
 
 	return toDTO(user), nil
 }
@@ -109,7 +111,7 @@ func (s *userService) List(ctx context.Context) ([]*dto.UserDto, error) {
 
 func toDTO(u *entity.User) *dto.UserDto {
 	return &dto.UserDto{
-		ID:    u.ID,
+		Uuid:  u.Uuid,
 		Name:  u.Name,
 		Email: u.Email,
 	}

@@ -3,6 +3,7 @@ package app
 import (
 	"gostudy/internal/config"
 	"gostudy/internal/db"
+	"gostudy/internal/facade"
 	"gostudy/internal/handler"
 	"gostudy/internal/repository"
 	"gostudy/internal/service"
@@ -40,11 +41,15 @@ func New(cfg *config.Config) (*App, error) {
 
 	// --- DI ---
 	userRepository := repository.NewUserRepository(pool)
+	tokenRepository := repository.NewTokenRepository(pool)
 	userService := service.NewUserService(userRepository, txManager)
+	tokenService := service.NewTokenService(tokenRepository)
+	authFacade := facade.NewAuthFacade(userService, tokenService)
 	userHandler := handler.NewUserHandler(userService)
+	authHandler := handler.NewAuthHandler(authFacade)
 
 	// --- Router ---
-	router = setupRouter(pool, userHandler)
+	router = setupRouter(pool, userHandler, authHandler)
 
 	srv := &http.Server{
 		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
@@ -102,7 +107,7 @@ func (a *App) shutdown() error {
 
 }
 
-func setupRouter(pool *pgxpool.Pool, userHandler *handler.UserHandler) *gin.Engine {
+func setupRouter(pool *pgxpool.Pool, userHandler *handler.UserHandler, authHandler *handler.AuthHandler) *gin.Engine {
 	router := gin.New()
 	// middleware
 	router.Use(gin.Recovery())
@@ -125,6 +130,7 @@ func setupRouter(pool *pgxpool.Pool, userHandler *handler.UserHandler) *gin.Engi
 	{
 		api.GET("/time", handler.CurrentTime)
 		userHandler.RegisterRoutes(api)
+		authHandler.RegisterRoutes(api)
 	}
 	return router
 }
