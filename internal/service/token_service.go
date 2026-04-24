@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"gostudy/internal/model/entity"
 	"gostudy/internal/repository"
 	"time"
@@ -21,6 +22,8 @@ type TokenService interface {
 	GenerateAccessToken(ctx context.Context, user *entity.User) (string, error)
 	GenerateRefreshToken(ctx context.Context, user *entity.User) (string, error)
 	Save(ctx context.Context, user *entity.User, token string) error
+	ValidateAccessToken(ctx context.Context, tokenString string) (*TokenClaims, error)
+	ValidateRefreshToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 }
 
 func NewTokenService(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration, repo repository.TokenRepository) TokenService {
@@ -81,4 +84,34 @@ func (s *tokenService) Save(ctx context.Context, user *entity.User, token string
 		return err
 	}
 	return nil
+}
+
+func (s *tokenService) ValidateAccessToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
+	return s.parseToken(tokenString, s.accessSecret, "access")
+}
+
+func (s *tokenService) ValidateRefreshToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
+	return s.parseToken(tokenString, s.refreshSecret, "refresh")
+}
+
+func (s *tokenService) parseToken(tokenString string, secret []byte, expectedType string) (*TokenClaims, error) {
+	claims := &TokenClaims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+	if claims.Type != expectedType {
+		return nil, fmt.Errorf("invalid token type: %s", claims.Type)
+	}
+
+	return claims, nil
 }

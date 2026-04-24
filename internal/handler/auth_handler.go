@@ -16,30 +16,37 @@ func NewAuthHandler(authFacade facade.AuthFacade) *AuthHandler {
 	return &AuthHandler{authFacade: authFacade}
 }
 
-func (h *AuthHandler) RegisterRoutes(routerGroup *gin.RouterGroup) {
-	//routerGroup.GET("/me", h.GetMe)
-	routerGroup.POST("/register", h.Register)
-	routerGroup.POST("/login", h.Login)
-	//routerGroup.POST("/refresh", h.Refresh)
-	//.POST("/logout", h.Logout)
+func (h *AuthHandler) RegisterRoutes(routerGroup *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	public := routerGroup.Group("")
+	{
+		public.POST("/register", h.Register)
+		public.POST("/login", h.Login)
+	}
+
+	protected := routerGroup.Group("")
+	protected.Use(authMiddleware)
+	{
+		protected.GET("/me", h.GetMe)
+		//protected.POST("/refresh", h.Refresh)
+		//protected.POST("/logout", h.Logout)
+	}
 }
 
-//func (h *AuthHandler) GetMe(c *gin.Context) {
-//	// Пример: если у тебя userID кладется в middleware в context
-//	userID, ok := c.Get("userID")
-//	if !ok {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-//		return
-//	}
-//
-//	user, err := h.authFacade.GetMe(c.Request.Context(), userID)
-//	if err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//	c.JSON(http.StatusOK, user)
-//}
+func (h *AuthHandler) GetMe(c *gin.Context) {
+
+	userEmail, ok := c.Get("userEmail")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, err := h.authFacade.GetMe(c.Request.Context(), userEmail.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest

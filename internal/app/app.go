@@ -5,6 +5,7 @@ import (
 	"gostudy/internal/db"
 	"gostudy/internal/facade"
 	"gostudy/internal/handler"
+	"gostudy/internal/middleware"
 	"gostudy/internal/repository"
 	"gostudy/internal/service"
 	"log/slog"
@@ -47,9 +48,10 @@ func New(cfg *config.Config) (*App, error) {
 	authFacade := facade.NewAuthFacade(userService, tokenService)
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authFacade)
+	authMiddleware := middleware.NewAuthMiddleware(tokenService)
 
 	// --- Router ---
-	router = setupRouter(pool, userHandler, authHandler)
+	router = setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
 
 	srv := &http.Server{
 		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
@@ -107,30 +109,42 @@ func (a *App) shutdown() error {
 
 }
 
-func setupRouter(pool *pgxpool.Pool, userHandler *handler.UserHandler, authHandler *handler.AuthHandler) *gin.Engine {
+func setupRouter(
+	pool *pgxpool.Pool,
+	userHandler *handler.UserHandler,
+	authHandler *handler.AuthHandler,
+	authMiddleware gin.HandlerFunc,
+) *gin.Engine {
 	router := gin.New()
-	// middleware
-	router.Use(gin.Recovery())
-	router.Use(gin.Logger())
-	// --- k8s probes ---
+	router.Use(gin.Recovery(), gin.Logger())
+
 	router.GET("/live", func(c *gin.Context) {
-		c.Status(http.StatusOK)
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
 	router.GET("/ready", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
+
 		if err := pool.Ping(ctx); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "db not ready"})
 			return
 		}
 		c.Status(http.StatusOK)
 	})
-	// --- API v1 ---
+
 	api := router.Group("/api/v1")
 	{
 		api.GET("/time", handler.CurrentTime)
-		userHandler.RegisterRoutes(api)
-		authHandler.RegisterRoutes(api)
+
+		auth := api.Group("")
+		auth.Use(authMiddleware)
+		{
+			userHandler.RegisterRoutes(auth)
+		}
+
+		authHandler.RegisterRoutes(api, authMiddleware)
 	}
+
 	return router
 }

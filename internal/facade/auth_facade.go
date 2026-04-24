@@ -21,6 +21,7 @@ type authFacade struct {
 type AuthFacade interface {
 	Register(context context.Context, req dto.RegisterRequest) (*dto.UserDto, error)
 	Login(context context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
+	GetMe(context context.Context, email string) (*dto.UserDto, error)
 }
 
 func NewAuthFacade(userService service.UserService, tokenService service.TokenService) AuthFacade {
@@ -69,6 +70,18 @@ func (f *authFacade) Login(ctx context.Context, req dto.LoginRequest) (*dto.Logi
 	return &dto.LoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (f *authFacade) GetMe(context context.Context, email string) (*dto.UserDto, error) {
+	user, err := f.userService.GetByEmail(context, email)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.UserDto{
+		Uuid:  user.Uuid,
+		Name:  user.Name,
+		Email: user.Email,
 	}, nil
 }
 
