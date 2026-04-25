@@ -23,6 +23,7 @@ type AuthFacade interface {
 	Login(context context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 	GetMe(context context.Context, email string) (*dto.UserDto, error)
 	Refresh(context context.Context, req dto.RefreshRequest) (*dto.LoginResponse, error)
+	Logout(context context.Context, email string) error
 }
 
 func NewAuthFacade(userService service.UserService, tokenService service.TokenService) AuthFacade {
@@ -96,7 +97,7 @@ func (f *authFacade) Refresh(context context.Context, req dto.RefreshRequest) (*
 		return nil, err
 	}
 
-	if err := f.tokenService.Delete(context, user, req.RefreshToken); err != nil {
+	if err := f.tokenService.Delete(context, user); err != nil {
 		return nil, err
 	}
 
@@ -118,6 +119,18 @@ func (f *authFacade) Refresh(context context.Context, req dto.RefreshRequest) (*
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+func (f *authFacade) Logout(context context.Context, email string) error {
+	user, err := f.userService.GetByEmail(context, email)
+	if err != nil {
+		return err
+	}
+
+	if err := f.tokenService.Delete(context, user); err != nil {
+		return err
+	}
+	return nil
 }
 
 func hashPassword(password string) (string, error) {

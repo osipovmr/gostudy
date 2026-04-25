@@ -24,7 +24,7 @@ type TokenService interface {
 	Save(ctx context.Context, user *entity.User, token string) error
 	ValidateAccessToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ValidateRefreshToken(ctx context.Context, tokenString string) (*TokenClaims, error)
-	Delete(ctx context.Context, user *entity.User, token string) error
+	Delete(ctx context.Context, user *entity.User) error
 }
 
 func NewTokenService(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration, repo repository.TokenRepository) TokenService {
@@ -116,8 +116,8 @@ func (s *tokenService) parseToken(tokenString string, secret []byte, expectedTyp
 	return claims, nil
 }
 
-func (s *tokenService) Delete(ctx context.Context, user *entity.User, token string) error {
-	err := s.tokenRepository.Delete(ctx, user, token)
+func (s *tokenService) Delete(ctx context.Context, user *entity.User) error {
+	err := s.tokenRepository.Delete(ctx, user)
 	if err != nil {
 		return err
 	}

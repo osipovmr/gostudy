@@ -29,7 +29,7 @@ func (h *AuthHandler) RegisterRoutes(routerGroup *gin.RouterGroup, authMiddlewar
 	protected.Use(authMiddleware)
 	{
 		protected.GET("/me", h.GetMe)
-		//protected.POST("/logout", h.Logout)
+		protected.POST("/logout", h.Logout)
 	}
 }
 
@@ -88,26 +88,11 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-//
-//func (h *AuthHandler) Logout(c *gin.Context) {
-//	authHeader := c.GetHeader("Authorization")
-//	if authHeader == "" {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
-//		return
-//	}
-//
-//	parts := strings.SplitN(authHeader, " ", 2)
-//	if len(parts) != 2 || parts[0] != "Bearer" {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
-//		return
-//	}
-//
-//	token := parts[1]
-//
-//	if err := h.authFacade.Logout(c.Request.Context(), token); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//	c.Status(http.StatusNoContent)
-//}
+func (h *AuthHandler) Logout(c *gin.Context) {
+	userEmail, _ := c.Get("userEmail")
+	if err := h.authFacade.Logout(c.Request.Context(), userEmail.(string)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to logout"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "logged out"})
+}

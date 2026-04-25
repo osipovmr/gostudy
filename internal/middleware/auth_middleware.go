@@ -43,6 +43,7 @@ func (m *AuthMiddleware) Handler() gin.HandlerFunc {
 		}
 
 		c.Set("userEmail", claims.Email)
+		c.Set("accessToken", parts[1])
 		c.Next()
 	}
 }

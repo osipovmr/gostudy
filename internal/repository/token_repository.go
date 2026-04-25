@@ -11,7 +11,7 @@ import (
 
 type TokenRepository interface {
 	Save(ctx context.Context, user *entity.User, token string) error
-	Delete(ctx context.Context, user *entity.User, token string) error
+	Delete(ctx context.Context, user *entity.User) error
 }
 
 type tokenRepository struct {
@@ -31,10 +31,10 @@ func (r *tokenRepository) Save(ctx context.Context, user *entity.User, token str
 	return nil
 }
 
-func (r *tokenRepository) Delete(ctx context.Context, user *entity.User, token string) error {
-	query := `DELETE FROM refresh_token WHERE user_uuid = $1 AND token_hash = $2`
+func (r *tokenRepository) Delete(ctx context.Context, user *entity.User) error {
+	query := `DELETE FROM refresh_token WHERE user_uuid = $1`
 
-	tag, err := r.db.Exec(ctx, query, user.Uuid, token)
+	tag, err := r.db.Exec(ctx, query, user.Uuid)
 	if err != nil {
 		return err
 	}
