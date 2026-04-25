@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"gostudy/internal/model/entity"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 type TokenRepository interface {
 	Save(ctx context.Context, user *entity.User, token string) error
+	Delete(ctx context.Context, user *entity.User, token string) error
 }
 
 type tokenRepository struct {
@@ -25,6 +27,19 @@ func (r *tokenRepository) Save(ctx context.Context, user *entity.User, token str
 	_, err := r.db.Exec(ctx, query, user.Uuid, token, time.Now())
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (r *tokenRepository) Delete(ctx context.Context, user *entity.User, token string) error {
+	query := `DELETE FROM refresh_token WHERE user_uuid = $1 AND token_hash = $2`
+
+	tag, err := r.db.Exec(ctx, query, user.Uuid, token)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("refresh token not found")
 	}
 	return nil
 }

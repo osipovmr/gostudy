@@ -22,6 +22,7 @@ type AuthFacade interface {
 	Register(context context.Context, req dto.RegisterRequest) (*dto.UserDto, error)
 	Login(context context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 	GetMe(context context.Context, email string) (*dto.UserDto, error)
+	Refresh(context context.Context, req dto.RefreshRequest) (*dto.LoginResponse, error)
 }
 
 func NewAuthFacade(userService service.UserService, tokenService service.TokenService) AuthFacade {
@@ -82,6 +83,40 @@ func (f *authFacade) GetMe(context context.Context, email string) (*dto.UserDto,
 		Uuid:  user.Uuid,
 		Name:  user.Name,
 		Email: user.Email,
+	}, nil
+}
+
+func (f *authFacade) Refresh(context context.Context, req dto.RefreshRequest) (*dto.LoginResponse, error) {
+	claims, err := f.tokenService.ValidateRefreshToken(context, req.RefreshToken)
+	if err != nil {
+		return nil, err
+	}
+	user, err := f.userService.GetByEmail(context, claims.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := f.tokenService.Delete(context, user, req.RefreshToken); err != nil {
+		return nil, err
+	}
+
+	accessToken, err := f.tokenService.GenerateAccessToken(context, user)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := f.tokenService.GenerateRefreshToken(context, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := f.tokenService.Save(context, user, refreshToken); err != nil {
+		return nil, err
+	}
+
+	return &dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 

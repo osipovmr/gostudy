@@ -3,6 +3,7 @@ package handler
 import (
 	"gostudy/internal/facade"
 	"gostudy/internal/model/dto"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,24 +22,19 @@ func (h *AuthHandler) RegisterRoutes(routerGroup *gin.RouterGroup, authMiddlewar
 	{
 		public.POST("/register", h.Register)
 		public.POST("/login", h.Login)
+		public.POST("/refresh", h.Refresh)
 	}
 
 	protected := routerGroup.Group("")
 	protected.Use(authMiddleware)
 	{
 		protected.GET("/me", h.GetMe)
-		//protected.POST("/refresh", h.Refresh)
 		//protected.POST("/logout", h.Logout)
 	}
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
-
-	userEmail, ok := c.Get("userEmail")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
+	userEmail, _ := c.Get("userEmail")
 	user, err := h.authFacade.GetMe(c.Request.Context(), userEmail.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -54,7 +50,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	res, err := h.authFacade.Register(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -70,39 +65,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	res, err := h.authFacade.Login(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, res)
 }
 
-//func (h *AuthHandler) Refresh(c *gin.Context) {
-//	authHeader := c.GetHeader("Authorization")
-//	if authHeader == "" {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
-//		return
-//	}
-//
-//	parts := strings.SplitN(authHeader, " ", 2)
-//	if len(parts) != 2 || parts[0] != "Bearer" {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
-//		return
-//	}
-//
-//	token := parts[1]
-//
-//	res, err := h.authFacade.Refresh(c.Request.Context(), token)
-//	if err != nil {
-//		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//	c.JSON(http.StatusOK, res)
-//}
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	response, err := h.authFacade.Refresh(c.Request.Context(), req)
+	if err != nil {
+		slog.Error(err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid refresh token"})
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
 //
 //func (h *AuthHandler) Logout(c *gin.Context) {
 //	authHeader := c.GetHeader("Authorization")

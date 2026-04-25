@@ -24,6 +24,7 @@ type TokenService interface {
 	Save(ctx context.Context, user *entity.User, token string) error
 	ValidateAccessToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ValidateRefreshToken(ctx context.Context, tokenString string) (*TokenClaims, error)
+	Delete(ctx context.Context, user *entity.User, token string) error
 }
 
 func NewTokenService(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration, repo repository.TokenRepository) TokenService {
@@ -96,7 +97,6 @@ func (s *tokenService) ValidateRefreshToken(ctx context.Context, tokenString str
 
 func (s *tokenService) parseToken(tokenString string, secret []byte, expectedType string) (*TokenClaims, error) {
 	claims := &TokenClaims{}
-
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if token.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -114,4 +114,12 @@ func (s *tokenService) parseToken(tokenString string, secret []byte, expectedTyp
 	}
 
 	return claims, nil
+}
+
+func (s *tokenService) Delete(ctx context.Context, user *entity.User, token string) error {
+	err := s.tokenRepository.Delete(ctx, user, token)
+	if err != nil {
+		return err
+	}
+	return nil
 }
