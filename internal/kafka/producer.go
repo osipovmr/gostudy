@@ -24,7 +24,6 @@ type Producer interface {
 func NewProducer(brokers []string,
 	mailRegistrationTopic string,
 ) Producer {
-
 	return &producer{
 		writer: &kafka.Writer{
 			Addr:     kafka.TCP(brokers...),
