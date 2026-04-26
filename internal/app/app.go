@@ -5,6 +5,7 @@ import (
 	"gostudy/internal/db"
 	"gostudy/internal/facade"
 	"gostudy/internal/handler"
+	"gostudy/internal/kafka"
 	"gostudy/internal/middleware"
 	"gostudy/internal/repository"
 	"gostudy/internal/service"
@@ -45,10 +46,13 @@ func New(cfg *config.Config) (*App, error) {
 	tokenRepository := repository.NewTokenRepository(pool)
 	userService := service.NewUserService(userRepository, txManager)
 	tokenService := service.NewTokenService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, tokenRepository)
-	authFacade := facade.NewAuthFacade(userService, tokenService)
 	userHandler := handler.NewUserHandler(userService)
-	authHandler := handler.NewAuthHandler(authFacade)
 	authMiddleware := middleware.NewAuthMiddleware(tokenService)
+	var kafkaClusters []string
+	kafkaClusters = append(kafkaClusters, cfg.KAFKAAddr)
+	producer := kafka.NewProducer(kafkaClusters, cfg.MailRegistrationTopic)
+	authFacade := facade.NewAuthFacade(userService, tokenService, producer)
+	authHandler := handler.NewAuthHandler(authFacade)
 
 	// --- Router ---
 	router = setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
