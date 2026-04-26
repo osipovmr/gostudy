@@ -10,6 +10,7 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+      - kafka
     networks:
       - gostudy
     environment:
@@ -41,7 +42,6 @@ services:
       - '9092:9092'
     environment:
       KAFKA_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
-      KAFKA_ALLOW_AUTO_CREATE_TOPICS: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: PLAINTEXT://kafka:9092, CONTROLLER://kafka:9093
@@ -49,10 +49,9 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_KRAFT_CLUSTER_ID: dh-cluster
-      KAFKA_CREATE_TOPICS: '__consumer_offsets'
-    depends_on:
-      - go-backend
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
     networks:
       - gostudy
   ui:
@@ -64,10 +63,9 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_CLUSTERS_0_NAME: go-osipov
     depends_on:
-      - go-backend
+      - kafka
     networks:
       - gostudy
-
 volumes:
   postgres_data:
 networks:
