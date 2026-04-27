@@ -9,19 +9,23 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// UserClaims представляет пользовательские JWT-claims, используемые в приложении.
 type UserClaims struct {
 	Email string `json:"email"`
 	jwt.RegisteredClaims
 }
 
+// AuthMiddleware отвечает за проверку JWT access-токена в HTTP-запросах.
 type AuthMiddleware struct {
 	tokenService service.TokenService
 }
 
+// NewAuthMiddleware создает новый экземпляр middleware для аутентификации.
 func NewAuthMiddleware(s service.TokenService) *AuthMiddleware {
 	return &AuthMiddleware{tokenService: s}
 }
 
+// Handler проверяет наличие и валидность Bearer access-токена и добавляет данные пользователя в контекст запроса.
 func (m *AuthMiddleware) Handler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -43,6 +47,7 @@ func (m *AuthMiddleware) Handler() gin.HandlerFunc {
 		}
 
 		c.Set("userEmail", claims.Email)
+		// сохраняем access token в контексте запроса
 		c.Set("accessToken", parts[1])
 		c.Next()
 	}

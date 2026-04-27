@@ -17,10 +17,12 @@ var (
 	ErrKafkaProducer = errors.New("fail to send message")
 )
 
+// Producer defines methods for sending messages to Kafka topics.
 type Producer interface {
 	SendRegistrationMessage(ctx context.Context, userEmail string) error
 }
 
+// NewProducer creates a new Kafka producer instance with the given brokers and topic.
 func NewProducer(brokers []string,
 	mailRegistrationTopic string,
 ) Producer {
@@ -34,6 +36,7 @@ func NewProducer(brokers []string,
 
 }
 
+// SendRegistrationMessage sends a user registration email message to the configured Kafka topic.
 func (p *producer) SendRegistrationMessage(ctx context.Context, userEmail string) error {
 	err := p.send(ctx, p.mailRegistrationTopic, nil, []byte(userEmail))
 	if err != nil {
@@ -43,6 +46,7 @@ func (p *producer) SendRegistrationMessage(ctx context.Context, userEmail string
 	return nil
 }
 
+// send writes a message to the specified Kafka topic using the underlying writer.
 func (p *producer) send(ctx context.Context, topic string, key, value []byte) error {
 	return p.writer.WriteMessages(ctx, kafka.Message{
 		Topic: topic,

@@ -19,6 +19,8 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// main — точка входа в приложение. Инициализирует логирование и конфигурацию,
+// настраивает обработку сигналов ОС, создает Kafka-топики и запускает приложение.
 func main() {
 	logger.Init()
 
@@ -65,6 +67,9 @@ func main() {
 	slog.Info("app exited")
 }
 
+// createTopicsWithRetry пытается создать Kafka-топики с повторными попытками.
+// Выполняет указанное количество попыток с задержкой между ними
+// и учитывает отмену контекста.
 func createTopicsWithRetry(
 	ctx context.Context,
 	brokerAddr string,
@@ -97,6 +102,8 @@ func createTopicsWithRetry(
 	return fmt.Errorf("create topics failed after %d attempts: %w", attempts, lastErr)
 }
 
+// createTopics подключается к контроллеру Kafka и создает переданные топики.
+// Возвращает ошибку при сбое подключения, получении контроллера или создании топиков.
 func createTopics(ctx context.Context, brokerAddr string, topics []kafka.TopicConfig) error {
 	dialer := &kafka.Dialer{Timeout: 10 * time.Second}
 

@@ -18,6 +18,7 @@ var (
 	ErrUserExists   = errors.New("user already exists")
 )
 
+// UserService описывает бизнес-логику для работы с пользователями.
 type UserService interface {
 	Create(ctx context.Context, input dto.CreateUserInput) (*dto.UserDto, error)
 	GetByID(ctx context.Context, id string) (*dto.UserDto, error)
@@ -27,11 +28,13 @@ type UserService interface {
 	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 }
 
+// userService — реализация UserService, инкапсулирующая зависимости репозитория и транзакционного менеджера.
 type userService struct {
 	userRepository repository.UserRepository
 	txManager      db.TxManager
 }
 
+// NewUserService создает новый экземпляр сервиса пользователей.
 func NewUserService(repo repository.UserRepository, txManager db.TxManager) UserService {
 	return &userService{
 		userRepository: repo,
@@ -39,6 +42,7 @@ func NewUserService(repo repository.UserRepository, txManager db.TxManager) User
 	}
 }
 
+// Create создает нового пользователя, проверяя уникальность email и выполняя операцию в транзакции.
 func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*dto.UserDto, error) {
 	var result *dto.UserDto
 	err := s.txManager.WithTx(ctx, func(ctx context.Context) error {
@@ -65,6 +69,7 @@ func (s *userService) Create(ctx context.Context, input dto.CreateUserInput) (*d
 	return result, nil
 }
 
+// GetByEmail возвращает пользователя по email.
 func (s *userService) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
 	user, err := s.userRepository.GetByEmail(ctx, email)
 	if err != nil {
@@ -73,6 +78,7 @@ func (s *userService) GetByEmail(ctx context.Context, email string) (*entity.Use
 	return user, nil
 }
 
+// GetByID возвращает пользователя по UUID.
 func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, error) {
 	user, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
@@ -82,6 +88,7 @@ func (s *userService) GetByID(ctx context.Context, id string) (*dto.UserDto, err
 	return toDTO(user), nil
 }
 
+// Update обновляет данные пользователя по UUID.
 func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUserInput) (*dto.UserDto, error) {
 	user, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
@@ -99,6 +106,7 @@ func (s *userService) Update(ctx context.Context, id string, input dto.UpdateUse
 	return toDTO(user), nil
 }
 
+// Delete удаляет пользователя по UUID.
 func (s *userService) Delete(ctx context.Context, id string) error {
 	_, err := s.userRepository.GetByID(ctx, id)
 	if err != nil {
@@ -108,6 +116,7 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 	return s.userRepository.Delete(ctx, id)
 }
 
+// List возвращает список всех пользователей.
 func (s *userService) List(ctx context.Context) ([]*dto.UserDto, error) {
 	users, err := s.userRepository.List(ctx)
 	if err != nil {
@@ -117,6 +126,7 @@ func (s *userService) List(ctx context.Context) ([]*dto.UserDto, error) {
 	return toDTOList(users), nil
 }
 
+// toDTO преобразует сущность пользователя в DTO.
 func toDTO(u *entity.User) *dto.UserDto {
 	return &dto.UserDto{
 		Uuid:  u.Uuid,
@@ -125,6 +135,7 @@ func toDTO(u *entity.User) *dto.UserDto {
 	}
 }
 
+// toDTOList преобразует список сущностей пользователей в список DTO.
 func toDTOList(users []entity.User) []*dto.UserDto {
 	result := make([]*dto.UserDto, 0, len(users))
 	for i := range users {
