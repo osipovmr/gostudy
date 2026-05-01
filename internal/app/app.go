@@ -20,16 +20,12 @@ import (
 )
 
 type App struct {
-	server *http.Server
-	db     *pgxpool.Pool
+	server       *http.Server
+	db           *pgxpool.Pool
+	mailConsumer *kafka.MailConsumer
 }
 
 func New(cfg *config.Config) (*App, error) {
-	gin.SetMode(gin.ReleaseMode)
-
-	router := gin.New()
-	router.Use(gin.Recovery())
-
 	pool, err := db.NewPool(cfg.DBURL)
 	if err != nil {
 		return nil, err
@@ -53,9 +49,15 @@ func New(cfg *config.Config) (*App, error) {
 	producer := kafka.NewProducer(kafkaClusters, cfg.MailRegistrationTopic)
 	authFacade := facade.NewAuthFacade(userService, tokenService, producer)
 	authHandler := handler.NewAuthHandler(authFacade)
-
+	mailConsumer := kafka.NewMailConsumer(
+		kafka.Config{
+			Brokers: []string{cfg.KAFKAAddr},
+			GroupID: "my-group",
+		},
+		cfg.MailRegistrationTopic,
+	)
 	// --- Router ---
-	router = setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
+	router := setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
 
 	srv := &http.Server{
 		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
@@ -75,8 +77,9 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	return &App{
-		server: srv,
-		db:     pool,
+		server:       srv,
+		db:           pool,
+		mailConsumer: mailConsumer,
 	}, nil
 }
 
@@ -86,6 +89,12 @@ func (a *App) Run(ctx context.Context) error {
 	go func() {
 		slog.Info("starting server", "addr", a.server.Addr)
 		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+	go func() {
+		slog.Info("starting mail consumer")
+		if err := a.mailConsumer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			errCh <- err
 		}
 	}()
@@ -119,6 +128,7 @@ func setupRouter(
 	authHandler *handler.AuthHandler,
 	authMiddleware gin.HandlerFunc,
 ) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery(), gin.Logger())
 

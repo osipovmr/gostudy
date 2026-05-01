@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/segmentio/kafka-go"
@@ -42,7 +43,7 @@ func (p *producer) SendRegistrationMessage(ctx context.Context, userEmail string
 	if err != nil {
 		return ErrKafkaProducer
 	}
-	slog.Info("producer: topic %s, message: %s", p.mailRegistrationTopic, userEmail)
+	slog.Info(fmt.Sprintf("producer: topic %s, message: %s", p.mailRegistrationTopic, userEmail))
 	return nil
 }
 
