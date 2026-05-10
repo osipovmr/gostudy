@@ -30,7 +30,12 @@ func (c *MailConsumer) Run(ctx context.Context) error {
 		GroupID: c.cfg.GroupID,
 		Topic:   c.topic,
 	})
-	defer reader.Close()
+	defer func(reader *kafka.Reader) {
+		err := reader.Close()
+		if err != nil {
+			slog.Error("failed to close connection", "error", err)
+		}
+	}(reader)
 
 	slog.Info("mail consumer started", "topic", c.topic)
 

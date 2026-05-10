@@ -40,7 +40,13 @@ func main() {
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	defer conn.Close()
+	defer func() {
+
+		if err := conn.Close(); err != nil {
+			slog.Error("failed to close connection", "error", err)
+		}
+
+	}()
 
 	if err := createTopicsWithRetry(ctx, cfg.KAFKAAddr, []kafka.TopicConfig{
 		{
@@ -111,7 +117,13 @@ func createTopics(ctx context.Context, brokerAddr string, topics []kafka.TopicCo
 	if err != nil {
 		return fmt.Errorf("dial kafka: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+
+		if err := conn.Close(); err != nil {
+			slog.Error("failed to close connection", "error", err)
+		}
+
+	}()
 
 	controller, err := conn.Controller()
 	if err != nil {
@@ -124,7 +136,12 @@ func createTopics(ctx context.Context, brokerAddr string, topics []kafka.TopicCo
 	if err != nil {
 		return fmt.Errorf("dial controller: %w", err)
 	}
-	defer controllerConn.Close()
+	defer func(controllerConn *kafka.Conn) {
+		err := controllerConn.Close()
+		if err != nil {
+			slog.Error("failed to close controller", "error", err)
+		}
+	}(controllerConn)
 
 	if err := controllerConn.CreateTopics(topics...); err != nil {
 		return fmt.Errorf("create topics: %w", err)

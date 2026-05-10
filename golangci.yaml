@@ -1,0 +1,271 @@
+# Версия формата конфигурации golangci-lint.
+# Для новых версий линтера рекомендуется version: "2".
+version: "2"
+
+# Общие настройки запуска линтера.
+run:
+  # Версия Go, под которую запускаются проверки.
+  # Должна совпадать с версией проекта.
+  go: 1.26.2
+
+  # Использовать зависимости из папки vendor.
+  # Нужна только если проект использует `go mod vendor`.
+  # Если vendor не используется — настройку можно удалить.
+  # modules-download-mode: vendor
+
+# Настройки вывода.
+output:
+  formats:
+    text:
+      # Выводить результат в stdout (консоль).
+      path: stdout
+
+# Настройки линтеров.
+linters:
+  # Не включать линтеры по умолчанию.
+  # Хорошая практика — явно перечислять нужные.
+  default: none
+
+  enable:
+    # Проверяет закрытие HTTP body.
+    # Полезно для любого backend проекта.
+    - bodyclose
+
+    # Проверяет, что ошибки не игнорируются.
+    # Обязательно оставить.
+    - errcheck
+
+    # Предлагает выносить повторяющиеся строки/числа в константы.
+    # Не критично, но полезно.
+    - goconst
+
+    # Security-анализатор.
+    # Очень полезен для backend.
+    - gosec
+
+    # Базовые проверки Go.
+    # Обязательно оставить.
+    - govet
+
+    # Проверяет алиасы импортов.
+    # Для маленького проекта можно убрать.
+    - importas
+
+    # Ищет бесполезные присваивания.
+    # Полезно оставить.
+    - ineffassign
+
+    # Проверяет опечатки.
+    # Можно оставить.
+    - misspell
+
+    # Требует пустую строку перед return.
+    # Чисто stylistic. Можно убрать.
+    - nlreturn
+
+    # Проверяет отсутствие context.Context.
+    # Очень полезно для backend и HTTP.
+    - noctx
+
+    # Оптимизация fmt.Sprintf.
+    # Не критично.
+    - perfsprint
+
+    # Предлагает preallocate slices.
+    # Микрооптимизация. Можно убрать.
+    - prealloc
+
+    # Проверяет shadowing predeclared identifiers.
+    # Полезно.
+    - predeclared
+
+    # Проверяет правильное использование slog.
+    # Нужно, если проект использует slog.
+    - sloglint
+
+    # Staticcheck — один из самых мощных линтеров в Go ecosystem.
+    # Он ищет:
+    # - deprecated API
+    # - потенциальные баги
+    # - бесполезный код
+    # - ошибки работы с nil
+    # - неправильное использование стандартной библиотеки
+    # - неэффективные конструкции
+    # - unreachable code
+    # По сути это «умный анализатор кода», а не просто style-checker.
+    # Многие реальные production-баги находятся именно staticcheck.
+    # Практически стандарт индустрии для Go backend.
+    # Обязательно оставить.
+    - staticcheck
+
+    # Линтер для тестов на библиотеке testify.
+
+    #
+
+    # Проверяет:
+    # - правильное использование assert/require
+    # - плохие patterns в тестах
+    # - лишние проверки
+    # - неправильный порядок аргументов
+    # - ситуации где лучше require вместо assert
+    # Этот линтер нужен ТОЛЬКО если проект использует:
+    #   github.com/stretchr/testify
+    # Если тесты написаны на стандартном testing package —
+    # testifylint можно удалить.
+    - testifylint
+
+    # Ищет неиспользуемые параметры функций.
+    # Полезно.
+    - unparam
+
+    # Ищет неиспользуемый код.
+    # Обязательно оставить.
+    - unused
+
+    # Строгий линтер форматирования.
+    # Часто слишком шумный для pet-project.
+    # Можно убрать.
+    - wsl_v5
+    - funlen
+    - gocyclo
+    # Он проверяет: насколько понятные и “достаточно длинные” у тебя имена переменных
+    - varnamelen
+    # Проверяет: ты не теряешь ошибки при возврате из функций
+    - wrapcheck
+  # Настройки отдельных линтеров.
+  settings:
+
+    # Ограничение длины функции.
+    funlen:
+      lines: 10
+
+    # Настройки goconst.
+    goconst:
+      # Предлагать константу после 2 повторений.
+      min-occurrences: 2
+      # Проверять повторяющиеся числа.
+      numbers: true
+
+    # Настройки gocyclo.
+    gocyclo:
+      min-complexity: 5
+
+    # Исключения для gosec.
+    gosec:
+      excludes:
+        # Отключение предупреждений про TLS.
+        - G402
+        # Отключение предупреждений про tempfile permissions.
+        - G303
+
+    # Настройки govet.
+    govet:
+      disable:
+        # Проверка оптимизации struct alignment.
+        # Обычно отключают.
+        - fieldalignment
+
+        # Проверка shadow variables.
+        # Часто слишком шумная.
+        - shadow
+
+      # Включить все проверки govet.
+      enable-all: true
+
+    # Настройки проверки орфографии.
+    misspell:
+      ignore-rules:
+        # Игнорировать слово auther.
+        # - auther
+
+    # Настройки nlreturn.
+    nlreturn:
+      # Требовать пустую строку перед return в блоках >2 строк.
+      block-size: 2
+
+    # Настройки staticcheck.
+    staticcheck:
+      checks:
+        # Включить все проверки.
+        - all
+        # Отключить требование package comments.
+        - -ST1000
+
+    # Настройки varnamelen.
+    # Но сам varnamelen не включен — настройки бесполезны.
+    varnamelen:
+      ignore-names:
+        - id
+      ignore-decls:
+        - ok bool
+
+    # Настройки wrapcheck.
+    # Но wrapcheck не включен — настройки бесполезны.
+    wrapcheck:
+      ignore-package-globs:
+        - google.golang.org/grpc/status
+        - github.com/pkg/errors
+        - golang.org/x/sync/errgroup
+
+  # Исключения.
+  exclusions:
+    # Более мягкая обработка generated files.
+    generated: lax
+    presets:
+      # Исключения для комментариев.
+      - comments
+      # Частые false positive.
+      - common-false-positives
+      # Legacy compatibility.
+      - legacy
+      # Игнор стандартных error-handling кейсов.
+      - std-error-handling
+    rules:
+      - linters:
+          # Не проверять тесты этими линтерами.
+          - containedctx
+          - err113
+          - funlen
+          - maintidx
+          - staticcheck
+          - varnamelen
+        # Применять к *_test.go.
+        path: _test\.go
+      - linters:
+          # Не проверять main.go этими линтерами.
+          - funlen
+          - gochecknoglobals
+          - lll
+        path: main\.go
+    # Полностью игнорируемые пути.
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+# Настройки автоформатирования.
+formatters:
+  enable:
+    # Стандартный gofmt.
+    # Обязательно оставить.
+    - gofmt
+
+  settings:
+    gci:
+      sections:
+        # Сначала standard imports.
+        - standard
+
+        # Потом external imports.
+        - default
+
+        # Потом локальные imports проекта.
+        - prefix(github.com/osipovmr/gostudy)
+
+  exclusions:
+    generated: lax
+
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
