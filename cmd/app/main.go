@@ -38,14 +38,13 @@ func main() {
 	dialer := &kafka.Dialer{Timeout: 10 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", cfg.KAFKAAddr)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("failed to dial kafka", "error", err)
+		return
 	}
 	defer func() {
-
 		if err := conn.Close(); err != nil {
 			slog.Error("failed to close connection", "error", err)
 		}
-
 	}()
 
 	if err := createTopicsWithRetry(ctx, cfg.KAFKAAddr, []kafka.TopicConfig{

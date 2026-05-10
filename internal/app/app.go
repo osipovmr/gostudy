@@ -105,13 +105,13 @@ func (a *App) Run(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
-	return a.shutdown()
+	return a.shutdown(ctx)
 
 }
 
-func (a *App) shutdown() error {
+func (a *App) shutdown(ctx context.Context) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	slog.Info("shutting down server")
 	if err := a.server.Shutdown(ctx); err != nil {
