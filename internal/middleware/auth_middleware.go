@@ -1,9 +1,10 @@
 package middleware
 
 import (
-	"gostudy/internal/service"
 	"net/http"
 	"strings"
+
+	"github.com/osipovmr/gostudy/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"

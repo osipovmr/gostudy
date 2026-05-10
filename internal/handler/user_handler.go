@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"gostudy/internal/model/dto"
-	"gostudy/internal/service"
+	"github.com/osipovmr/gostudy/internal/model/dto"
+	"github.com/osipovmr/gostudy/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

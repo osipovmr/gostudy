@@ -3,10 +3,11 @@ package facade
 import (
 	"context"
 	"errors"
-	"gostudy/internal/kafka"
-	"gostudy/internal/model/dto"
-	"gostudy/internal/service"
 	"log/slog"
+
+	"github.com/osipovmr/gostudy/internal/kafka"
+	"github.com/osipovmr/gostudy/internal/model/dto"
+	"github.com/osipovmr/gostudy/internal/service"
 
 	"golang.org/x/crypto/bcrypt"
 )

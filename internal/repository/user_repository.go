@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"gostudy/internal/model/entity"
+	"github.com/osipovmr/gostudy/internal/model/entity"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

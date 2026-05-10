@@ -11,10 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gostudy/internal/app"
-	"gostudy/internal/config"
+	"github.com/osipovmr/gostudy/internal/app"
+	"github.com/osipovmr/gostudy/internal/config"
 
-	"gostudy/internal/logger"
+	"github.com/osipovmr/gostudy/internal/logger"
 
 	"github.com/segmentio/kafka-go"
 )

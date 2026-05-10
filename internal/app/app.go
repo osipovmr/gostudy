@@ -1,17 +1,18 @@
 package app
 
 import (
-	"gostudy/internal/config"
-	"gostudy/internal/db"
-	"gostudy/internal/facade"
-	"gostudy/internal/handler"
-	"gostudy/internal/kafka"
-	"gostudy/internal/middleware"
-	"gostudy/internal/repository"
-	"gostudy/internal/service"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/osipovmr/gostudy/internal/config"
+	"github.com/osipovmr/gostudy/internal/db"
+	"github.com/osipovmr/gostudy/internal/facade"
+	"github.com/osipovmr/gostudy/internal/handler"
+	"github.com/osipovmr/gostudy/internal/kafka"
+	"github.com/osipovmr/gostudy/internal/middleware"
+	"github.com/osipovmr/gostudy/internal/repository"
+	"github.com/osipovmr/gostudy/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"

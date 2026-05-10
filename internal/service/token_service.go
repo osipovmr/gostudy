@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"gostudy/internal/model/entity"
-	"gostudy/internal/repository"
 	"time"
+
+	"github.com/osipovmr/gostudy/internal/model/entity"
+	"github.com/osipovmr/gostudy/internal/repository"
 
 	"github.com/golang-jwt/jwt/v4"
 )

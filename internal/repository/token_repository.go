@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"gostudy/internal/model/entity"
 	"time"
+
+	"github.com/osipovmr/gostudy/internal/model/entity"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -1,4 +1,4 @@
-module gostudy
+module github.com/osipovmr/gostudy
 
 go 1.26.2
 

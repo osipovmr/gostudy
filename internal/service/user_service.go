@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"errors"
-	"gostudy/internal/db"
 	"log/slog"
 
-	"gostudy/internal/model/dto"
-	"gostudy/internal/model/entity"
-	"gostudy/internal/repository"
+	"github.com/osipovmr/gostudy/internal/db"
+
+	"github.com/osipovmr/gostudy/internal/model/dto"
+	"github.com/osipovmr/gostudy/internal/model/entity"
+	"github.com/osipovmr/gostudy/internal/repository"
 
 	"github.com/google/uuid"
 )
