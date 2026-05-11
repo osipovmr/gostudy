@@ -35,19 +35,10 @@ func main() {
 		return
 	}
 
-	dialer := &kafka.Dialer{Timeout: 10 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", cfg.KAFKAAddr)
-	if err != nil {
-		slog.Error("failed to dial kafka", "error", err)
-		return
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			slog.Error("failed to close connection", "error", err)
-		}
-	}()
+	kafkaCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
-	if err := createTopicsWithRetry(ctx, cfg.KAFKAAddr, []kafka.TopicConfig{
+	if err := createTopicsWithRetry(kafkaCtx, cfg.KAFKAAddr, []kafka.TopicConfig{
 		{
 			Topic:             "__consumer_offsets",
 			NumPartitions:     1,
@@ -110,9 +101,11 @@ func createTopicsWithRetry(
 // createTopics подключается к контроллеру Kafka и создает переданные топики.
 // Возвращает ошибку при сбое подключения, получении контроллера или создании топиков.
 func createTopics(ctx context.Context, brokerAddr string, topics []kafka.TopicConfig) error {
+	topicCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	dialer := &kafka.Dialer{Timeout: 10 * time.Second}
 
-	conn, err := dialer.DialContext(ctx, "tcp", brokerAddr)
+	conn, err := dialer.DialContext(topicCtx, "tcp", brokerAddr)
 	if err != nil {
 		return fmt.Errorf("dial kafka: %w", err)
 	}
@@ -131,7 +124,7 @@ func createTopics(ctx context.Context, brokerAddr string, topics []kafka.TopicCo
 
 	controllerAddr := net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port))
 
-	controllerConn, err := dialer.DialContext(ctx, "tcp", controllerAddr)
+	controllerConn, err := dialer.DialContext(topicCtx, "tcp", controllerAddr)
 	if err != nil {
 		return fmt.Errorf("dial controller: %w", err)
 	}
