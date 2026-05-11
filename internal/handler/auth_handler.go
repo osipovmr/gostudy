@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"gostudy/internal/facade"
-	"gostudy/internal/model/dto"
 	"log/slog"
 	"net/http"
+
+	"github.com/osipovmr/gostudy/internal/facade"
+	"github.com/osipovmr/gostudy/internal/model/dto"
 
 	"github.com/gin-gonic/gin"
 )

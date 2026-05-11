@@ -1,34 +1,32 @@
 package app
 
 import (
-	"gostudy/internal/config"
-	"gostudy/internal/db"
-	"gostudy/internal/facade"
-	"gostudy/internal/handler"
-	"gostudy/internal/middleware"
-	"gostudy/internal/repository"
-	"gostudy/internal/service"
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/osipovmr/gostudy/internal/config"
+	"github.com/osipovmr/gostudy/internal/db"
+	"github.com/osipovmr/gostudy/internal/facade"
+	"github.com/osipovmr/gostudy/internal/handler"
+	"github.com/osipovmr/gostudy/internal/kafka"
+	"github.com/osipovmr/gostudy/internal/middleware"
+	"github.com/osipovmr/gostudy/internal/repository"
+	"github.com/osipovmr/gostudy/internal/service"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 type App struct {
-	server *http.Server
-	db     *pgxpool.Pool
+	server       *http.Server
+	db           *pgxpool.Pool
+	mailConsumer *kafka.MailConsumer
 }
 
 func New(cfg *config.Config) (*App, error) {
-	gin.SetMode(gin.ReleaseMode)
-
-	router := gin.New()
-	router.Use(gin.Recovery())
-
 	pool, err := db.NewPool(cfg.DBURL)
 	if err != nil {
 		return nil, err
@@ -45,13 +43,22 @@ func New(cfg *config.Config) (*App, error) {
 	tokenRepository := repository.NewTokenRepository(pool)
 	userService := service.NewUserService(userRepository, txManager)
 	tokenService := service.NewTokenService(cfg.AccessSecret, cfg.RefreshSecret, cfg.AccessTTL, cfg.RefreshTTL, tokenRepository)
-	authFacade := facade.NewAuthFacade(userService, tokenService)
 	userHandler := handler.NewUserHandler(userService)
-	authHandler := handler.NewAuthHandler(authFacade)
 	authMiddleware := middleware.NewAuthMiddleware(tokenService)
-
+	var kafkaClusters []string
+	kafkaClusters = append(kafkaClusters, cfg.KAFKAAddr)
+	producer := kafka.NewProducer(kafkaClusters, cfg.MailRegistrationTopic)
+	authFacade := facade.NewAuthFacade(userService, tokenService, producer)
+	authHandler := handler.NewAuthHandler(authFacade)
+	mailConsumer := kafka.NewMailConsumer(
+		kafka.Config{
+			Brokers: []string{cfg.KAFKAAddr},
+			GroupID: "my-group",
+		},
+		cfg.MailRegistrationTopic,
+	)
 	// --- Router ---
-	router = setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
+	router := setupRouter(pool, userHandler, authHandler, authMiddleware.Handler())
 
 	srv := &http.Server{
 		// Адрес для прослушивания в формате "host:port" (например, ":8080" или "0.0.0.0:8080")
@@ -71,8 +78,9 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	return &App{
-		server: srv,
-		db:     pool,
+		server:       srv,
+		db:           pool,
+		mailConsumer: mailConsumer,
 	}, nil
 }
 
@@ -85,19 +93,25 @@ func (a *App) Run(ctx context.Context) error {
 			errCh <- err
 		}
 	}()
+	go func() {
+		slog.Info("starting mail consumer")
+		if err := a.mailConsumer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			errCh <- err
+		}
+	}()
 	select {
 	case <-ctx.Done():
 		slog.Info("shutdown signal received")
 	case err := <-errCh:
 		return err
 	}
-	return a.shutdown()
+	return a.shutdown(ctx)
 
 }
 
-func (a *App) shutdown() error {
+func (a *App) shutdown(ctx context.Context) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	slog.Info("shutting down server")
 	if err := a.server.Shutdown(ctx); err != nil {
@@ -115,6 +129,7 @@ func setupRouter(
 	authHandler *handler.AuthHandler,
 	authMiddleware gin.HandlerFunc,
 ) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery(), gin.Logger())
 

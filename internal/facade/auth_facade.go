@@ -3,8 +3,11 @@ package facade
 import (
 	"context"
 	"errors"
-	"gostudy/internal/model/dto"
-	"gostudy/internal/service"
+	"log/slog"
+
+	"github.com/osipovmr/gostudy/internal/kafka"
+	"github.com/osipovmr/gostudy/internal/model/dto"
+	"github.com/osipovmr/gostudy/internal/service"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,6 +19,7 @@ var (
 type authFacade struct {
 	userService  service.UserService
 	tokenService service.TokenService
+	producer     kafka.Producer
 }
 
 type AuthFacade interface {
@@ -26,10 +30,15 @@ type AuthFacade interface {
 	Logout(context context.Context, email string) error
 }
 
-func NewAuthFacade(userService service.UserService, tokenService service.TokenService) AuthFacade {
+func NewAuthFacade(
+	userService service.UserService,
+	tokenService service.TokenService,
+	producer kafka.Producer,
+) AuthFacade {
 	return &authFacade{
 		userService:  userService,
 		tokenService: tokenService,
+		producer:     producer,
 	}
 }
 
@@ -41,6 +50,11 @@ func (f *authFacade) Register(context context.Context, req dto.RegisterRequest) 
 	userDto, err := f.userService.Create(context, dto.CreateUserInput{Email: req.Email, Name: req.Name, Password: hashedPassword})
 	if err != nil {
 		return nil, err
+	}
+	err = f.producer.SendRegistrationMessage(context, userDto.Email)
+	if err != nil {
+		slog.Error(err.Error())
+
 	}
 	return userDto, nil
 }
